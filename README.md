@@ -1,15 +1,53 @@
 # agent-comms
 
-To install dependencies:
+Bidirectional messaging between AI coding agents and humans via Telegram. Agents send messages from any machine, you read and reply in Telegram, replies route back to the right agent session.
+
+See [docs/SPEC.md](docs/SPEC.md) for the full specification.
+
+## Quick Start
 
 ```bash
 bun install
 ```
 
-To run:
+### Service
 
 ```bash
-bun run index.ts
+export TELEGRAM_BOT_TOKEN=...  # from @BotFather
+export TELEGRAM_CHAT_ID=...    # your chat ID
+export API_KEY=...             # shared secret
+bun run service
 ```
 
-This project was created using `bun init` in bun v1.3.10. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+### CLI
+
+Configure once:
+```bash
+export AGENT_COMMS_URL=https://agent-comms.your-domain.com
+export AGENT_COMMS_API_KEY=your-shared-secret
+```
+
+Or create `~/.config/agent-comms/config.json`:
+```json
+{
+  "serverUrl": "https://agent-comms.your-domain.com",
+  "apiKey": "your-shared-secret"
+}
+```
+
+Then:
+```bash
+agent-comms send "should I refactor this?"
+agent-comms check
+agent-comms history
+```
+
+### Tests
+
+```bash
+bun test
+```
+
+## Stack
+
+Bun, Hono, Grammy, Commander, bun:sqlite.
