@@ -180,7 +180,10 @@ agent-comms history [-l, --limit N]  # show recent conversation (default 20)
 
 ### Configuration
 
-Resolved in order (env vars take priority):
+Resolved in order (first match wins):
+
+1. Environment variables (including `.env` — Bun loads `.env` files automatically)
+2. Config file at `~/.config/agent-comms/config.json`
 
 | Setting    | Env var              | Config file key |
 |------------|----------------------|-----------------|
@@ -245,7 +248,11 @@ No sessions table. A session implicitly exists when messages reference its ID. N
 
 The `telegram_message_id` column is the critical routing key. When the bot forwards an agent message to Telegram, the returned `message_id` is stored here. When a human replies, the bot looks up `reply_to_message.message_id` against this column to find which session to route the reply to.
 
-## Service Environment Variables
+## Environment Variables
+
+Bun automatically loads `.env` files from the project root. Copy `.env.example` to `.env` and fill in the values. No dotenv library needed.
+
+### Service
 
 | Variable             | Required | Default              | Description                    |
 |----------------------|----------|----------------------|--------------------------------|
@@ -254,6 +261,15 @@ The `telegram_message_id` column is the critical routing key. When the bot forwa
 | `API_KEY`            | Yes      | —                    | Shared secret for API auth     |
 | `DATABASE_PATH`      | No       | `./agent-comms.db`   | SQLite file path               |
 | `PORT`               | No       | `3000`               | HTTP server port               |
+
+### CLI
+
+| Variable             | Required | Default | Description                           |
+|----------------------|----------|---------|---------------------------------------|
+| `AGENT_COMMS_URL`    | Yes*     | —       | Service URL                           |
+| `AGENT_COMMS_API_KEY`| Yes*     | —       | Shared secret                         |
+
+*Can also be set via `~/.config/agent-comms/config.json`.
 
 ## Deployment (Dokku)
 
