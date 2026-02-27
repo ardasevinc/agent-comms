@@ -155,18 +155,37 @@ Agent messages appear in Telegram as:
 Should I use Redis or SQLite for the cache layer?
 ```
 
-Format: `[agentType]` in bold, followed by `hostname / project`, then the message body. HTML parse mode.
+Format: `[agentType]` in bold, followed by `hostname / project`, then the message body. HTML parse mode. Each message includes an inline **"Reply" button** for quick replies without scrolling.
 
 ### Reply Routing
 
-1. Human swipe-replies to a specific Telegram message
-2. Bot reads `reply_to_message.message_id` from the update
-3. Looks up the original message row by `telegram_message_id` column
-4. Gets the `session_id` from that row
-5. Inserts the reply as `direction: "human_to_agent"` with the same session identity
-6. Bot confirms with `"Sent to [claude] mbp-arda / agent-comms"`
+Three ways to reply, checked in this order:
 
-Messages not sent as replies get a prompt: "Reply to a specific agent message to respond."
+**1. Swipe-reply** (native Telegram reply-to-message):
+- Bot reads `reply_to_message.message_id` from the update
+- Looks up the original message by `telegram_message_id`
+- Inserts reply scoped to that message's session
+
+**2. Inline "Reply" button**:
+- Each agent message has a "Reply" button attached via inline keyboard
+- Tapping it stores the target session and prompts "Type your reply:"
+- The next plain text message routes to that session
+
+**3. Plain text (last-agent default)**:
+- Any plain text without a reply or pending button tap routes to the **most recent agent that messaged**
+- Simplest path for single-agent conversations
+
+All successful replies are confirmed with a 👍 reaction on the human's message (no confirmation text cluttering the chat).
+
+### `/reply` Command
+
+Typing `/reply` shows an inline keyboard with all active agent sessions (up to 10, most recent first). Tap one to select it as the reply target, then type your message.
+
+### Bot Commands
+
+| Command  | Description                              |
+|----------|------------------------------------------|
+| `/reply` | Show active sessions to pick a reply target |
 
 ## CLI
 
@@ -362,3 +381,7 @@ with `agent-comms check` — don't block waiting.
 **Why single shared API key?** This is a single-user tool. Per-agent keys add complexity with no security benefit when you control all the machines.
 
 **Why `id DESC` instead of `created_at DESC` for history?** Messages inserted within the same second have identical `created_at` values. `id` is monotonically increasing and deterministic.
+
+**Why three reply mechanisms?** Swipe-reply is precise but requires scrolling to find the message. Inline Reply buttons solve this for recent messages. Plain-text-to-last-agent is the zero-friction path for the common case of one active agent. The `/reply` command handles the multi-agent picker case. Layering all three covers every UX scenario.
+
+**Why reactions instead of confirmation messages?** Confirmation messages like "Sent to [claude] ..." clutter the chat fast, especially with multiple agents. A 👍 reaction on the human's message is silent confirmation that doesn't add noise.

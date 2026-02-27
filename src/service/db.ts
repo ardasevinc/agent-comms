@@ -136,6 +136,57 @@ export function getMessageByTelegramId(
 	return getByTelegramIdStmt.get(telegramMessageId) ?? null;
 }
 
+const getLastAgentMessageStmt = db.prepare<Message, []>(`
+  SELECT id, session_id as sessionId, agent_type as agentType, hostname, project,
+         direction, content, telegram_message_id as telegramMessageId,
+         created_at as createdAt, read_at as readAt
+  FROM messages
+  WHERE direction = 'agent_to_human'
+  ORDER BY id DESC
+  LIMIT 1
+`);
+
+const getLastAgentMessageBySessionStmt = db.prepare<Message, [string]>(`
+  SELECT id, session_id as sessionId, agent_type as agentType, hostname, project,
+         direction, content, telegram_message_id as telegramMessageId,
+         created_at as createdAt, read_at as readAt
+  FROM messages
+  WHERE direction = 'agent_to_human' AND session_id = ?
+  ORDER BY id DESC
+  LIMIT 1
+`);
+
+const getActiveSessionsStmt = db.prepare<
+	{ sessionId: string; agentType: string; hostname: string; project: string },
+	[]
+>(`
+  SELECT session_id as sessionId, agent_type as agentType, hostname, project
+  FROM messages
+  WHERE direction = 'agent_to_human'
+  GROUP BY session_id
+  ORDER BY MAX(id) DESC
+  LIMIT 10
+`);
+
+export function getLastAgentMessage(): Message | null {
+	return getLastAgentMessageStmt.get() ?? null;
+}
+
+export function getLastAgentMessageBySession(
+	sessionId: string,
+): Message | null {
+	return getLastAgentMessageBySessionStmt.get(sessionId) ?? null;
+}
+
+export function getActiveSessions(): {
+	sessionId: string;
+	agentType: string;
+	hostname: string;
+	project: string;
+}[] {
+	return getActiveSessionsStmt.all();
+}
+
 export function clearMessages(): void {
 	db.run("DELETE FROM messages");
 }
