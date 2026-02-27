@@ -15,6 +15,7 @@ const {
 	getUnreadReplies,
 	markRepliesRead,
 	getHistory,
+	getAndMarkUnreadReplies,
 	getMessageByTelegramId,
 	insertReply,
 	clearMessages,
@@ -98,6 +99,19 @@ describe("replies", () => {
 		const replies = getUnreadReplies("test-session-123");
 		expect(replies).toHaveLength(1);
 		expect(replies.at(0)?.content).toBe("for session 123");
+	});
+
+	test("getAndMarkUnreadReplies returns unread replies and marks them read atomically", () => {
+		insertMessage(identity, "human_to_agent", "reply 1");
+		insertMessage(identity, "human_to_agent", "reply 2");
+
+		const marked = getAndMarkUnreadReplies("test-session-123");
+		expect(marked).toHaveLength(2);
+		expect(marked.at(0)?.content).toBe("reply 1");
+		expect(marked.at(1)?.content).toBe("reply 2");
+
+		const unread = getUnreadReplies("test-session-123");
+		expect(unread).toHaveLength(0);
 	});
 });
 

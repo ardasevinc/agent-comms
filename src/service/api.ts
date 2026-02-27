@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import type { SendRequest } from "../shared/types.ts";
+import type { AgentIdentity, SendRequest } from "../shared/types.ts";
 import { sendToTelegram } from "./bot.ts";
 import {
+	getAndMarkUnreadReplies,
 	getHistory,
 	getUnreadReplies,
 	insertMessage,
-	markRepliesRead,
 } from "./db.ts";
 
 const API_KEY = process.env.API_KEY;
@@ -27,9 +27,14 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.post("/messages", async (c) => {
-	const body = await c.req.json<SendRequest>();
+	let body: SendRequest;
+	try {
+		body = await c.req.json<SendRequest>();
+	} catch {
+		return c.json({ error: "Invalid JSON body" }, 400);
+	}
 
-	if (!body.identity || !body.content) {
+	if (!isValidSendRequest(body)) {
 		return c.json({ error: "identity and content are required" }, 400);
 	}
 
@@ -44,19 +49,51 @@ app.get("/messages/:sessionId", (c) => {
 	const sessionId = c.req.param("sessionId");
 	const markRead = c.req.query("mark_read") !== "false";
 
-	const messages = getUnreadReplies(sessionId);
-
-	if (markRead && messages.length > 0) {
-		markRepliesRead(sessionId);
-	}
+	const messages = markRead
+		? getAndMarkUnreadReplies(sessionId)
+		: getUnreadReplies(sessionId);
 
 	return c.json({ messages });
 });
 
 app.get("/messages/:sessionId/history", (c) => {
 	const sessionId = c.req.param("sessionId");
-	const limit = Number(c.req.query("limit") ?? 20);
+	const limitRaw = c.req.query("limit");
+	const limit = limitRaw === undefined ? 20 : Number(limitRaw);
+	if (!Number.isInteger(limit) || limit < 0) {
+		return c.json({ error: "limit must be a non-negative integer" }, 400);
+	}
 
 	const messages = getHistory(sessionId, limit);
 	return c.json({ messages });
 });
+
+function isValidSendRequest(body: unknown): body is SendRequest {
+	if (typeof body !== "object" || body === null) return false;
+
+	const b = body as Partial<SendRequest>;
+	if (typeof b.content !== "string" || b.content.length === 0) return false;
+	if (!isValidIdentity(b.identity)) return false;
+
+	return true;
+}
+
+function isValidIdentity(identity: unknown): identity is AgentIdentity {
+	if (typeof identity !== "object" || identity === null) return false;
+
+	const id = identity as Partial<AgentIdentity>;
+	return (
+		isValidAgentType(id.agentType) &&
+		isNonEmptyString(id.sessionId) &&
+		isNonEmptyString(id.hostname) &&
+		isNonEmptyString(id.project)
+	);
+}
+
+function isValidAgentType(type: unknown): type is AgentIdentity["agentType"] {
+	return type === "claude" || type === "codex" || type === "unknown";
+}
+
+function isNonEmptyString(value: unknown): value is string {
+	return typeof value === "string" && value.length > 0;
+}

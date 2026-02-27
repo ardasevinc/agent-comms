@@ -93,6 +93,33 @@ describe("POST /messages", () => {
 
 		expect(res.status).toBe(400);
 	});
+
+	test("rejects invalid json body", async () => {
+		const res = await app.fetch(
+			new Request(`${BASE}/messages`, {
+				method: "POST",
+				headers: {
+					Authorization: "Bearer test-key",
+					"Content-Type": "application/json",
+				},
+				body: "{",
+			}),
+		);
+
+		expect(res.status).toBe(400);
+	});
+
+	test("rejects malformed identity payload", async () => {
+		const res = await req("/messages", {
+			method: "POST",
+			body: JSON.stringify({
+				identity: {},
+				content: "hello",
+			}),
+		});
+
+		expect(res.status).toBe(400);
+	});
 });
 
 describe("GET /messages/:sessionId", () => {
@@ -149,5 +176,15 @@ describe("GET /messages/:sessionId/history", () => {
 		const res = await req("/messages/api-test-session/history?limit=3");
 		const data = (await res.json()) as { messages: unknown[] };
 		expect(data.messages).toHaveLength(3);
+	});
+
+	test("rejects invalid limit query param", async () => {
+		const badRes = await req("/messages/api-test-session/history?limit=abc");
+		expect(badRes.status).toBe(400);
+
+		const negativeRes = await req(
+			"/messages/api-test-session/history?limit=-1",
+		);
+		expect(negativeRes.status).toBe(400);
 	});
 });

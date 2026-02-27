@@ -52,6 +52,20 @@ const getUnreadRepliesStmt = db.prepare<Message, [string]>(`
   ORDER BY created_at ASC
 `);
 
+const getAndMarkUnreadRepliesStmt = db.prepare<Message, [string]>(`
+  WITH unread AS (
+    SELECT id
+    FROM messages
+    WHERE session_id = ? AND direction = 'human_to_agent' AND read_at IS NULL
+  )
+  UPDATE messages
+  SET read_at = datetime('now')
+  WHERE id IN (SELECT id FROM unread)
+  RETURNING id, session_id as sessionId, agent_type as agentType, hostname, project,
+            direction, content, telegram_message_id as telegramMessageId,
+            created_at as createdAt, read_at as readAt
+`);
+
 const markReadStmt = db.prepare<void, [string]>(`
   UPDATE messages SET read_at = datetime('now')
   WHERE session_id = ? AND direction = 'human_to_agent' AND read_at IS NULL
@@ -101,6 +115,11 @@ export function setTelegramMessageId(
 
 export function getUnreadReplies(sessionId: string): Message[] {
 	return getUnreadRepliesStmt.all(sessionId);
+}
+
+export function getAndMarkUnreadReplies(sessionId: string): Message[] {
+	const messages = getAndMarkUnreadRepliesStmt.all(sessionId);
+	return messages.sort((a, b) => a.id - b.id);
 }
 
 export function markRepliesRead(sessionId: string): void {
