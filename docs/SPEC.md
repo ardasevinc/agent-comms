@@ -155,7 +155,7 @@ Agent messages appear in Telegram as:
 Should I use Redis or SQLite for the cache layer?
 ```
 
-Format: `[agentType] hostname / project` header in bold, then the message body. HTML parse mode.
+Format: `[agentType]` in bold, followed by `hostname / project`, then the message body. HTML parse mode.
 
 ### Reply Routing
 
