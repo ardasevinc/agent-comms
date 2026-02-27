@@ -49,7 +49,7 @@ interface AgentIdentity {
 **Session ID** (checked in order):
 1. `$CLAUDE_SESSION_ID` — set by a SessionStart hook that injects it into the env
 2. `$CODEX_THREAD_ID` — automatically injected by Codex into all subprocess envs
-3. `basename $(readlink ~/.claude/debug/latest) .txt` — fallback for Claude Code without the hook
+3. `basename $(readlink ~/.claude/debug/latest) .txt` — fallback for Claude Code without the hook. Validated with an `includes("-")` check to ensure it's a UUID-shaped string; if not, falls through.
 4. `crypto.randomUUID()` — last resort fallback
 
 **Hostname**: `os.hostname()`
