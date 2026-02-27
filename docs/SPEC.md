@@ -165,14 +165,16 @@ Three ways to reply, checked in this order:
 - Bot reads `reply_to_message.message_id` from the update
 - Looks up the original message by `telegram_message_id`
 - Inserts reply scoped to that message's session
+- If mapping is missing, bot replies with an error and does **not** fall back to last-agent routing
 
 **2. Inline "Reply" button**:
 - Each agent message has a "Reply" button attached via inline keyboard
-- Tapping it stores the target session and prompts "Type your reply:"
+- Tapping it stores the target session and shows a callback toast: `Next message → [agent]`
 - The next plain text message routes to that session
+- If the selected session is stale/invalid, bot fails loudly and does **not** fall back to last-agent routing
 
 **3. Plain text (last-agent default)**:
-- Any plain text without a reply or pending button tap routes to the **most recent agent that messaged**
+- Plain text with no swipe-reply and no pending-target routes to the **most recent agent that messaged**
 - Simplest path for single-agent conversations
 
 All successful replies are confirmed with a 👍 reaction on the human's message (no confirmation text cluttering the chat).

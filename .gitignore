@@ -32,3 +32,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# local sqlite database
+agent-comms.db
+agent-comms.db-shm
+agent-comms.db-wal
