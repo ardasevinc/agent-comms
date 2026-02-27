@@ -63,7 +63,7 @@ const getHistoryStmt = db.prepare<Message, [string, number]>(`
          created_at as createdAt, read_at as readAt
   FROM messages
   WHERE session_id = ?
-  ORDER BY created_at DESC
+  ORDER BY id DESC
   LIMIT ?
 `);
 
@@ -115,6 +115,10 @@ export function getMessageByTelegramId(
 	telegramMessageId: number,
 ): Message | null {
 	return getByTelegramIdStmt.get(telegramMessageId) ?? null;
+}
+
+export function clearMessages(): void {
+	db.run("DELETE FROM messages");
 }
 
 export function insertReply(originalMessage: Message, content: string): number {

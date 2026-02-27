@@ -12,5 +12,17 @@
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.test.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noNonNullAssertion": "off"
+					}
+				}
+			}
+		}
+	]
 }
