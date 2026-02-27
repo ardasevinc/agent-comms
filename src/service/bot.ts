@@ -1,5 +1,5 @@
 import { Bot, InlineKeyboard } from "grammy";
-import type { AgentIdentity } from "../shared/types.ts";
+import type { AgentIdentity, Message } from "../shared/types.ts";
 import {
 	getActiveSessions,
 	getLastAgentMessage,
@@ -47,13 +47,27 @@ bot.command("reply", async (ctx) => {
 
 // Callback query from inline keyboard — reply button on agent msg or /reply picker
 bot.on("callback_query:data", async (ctx) => {
+	const callbackChatId = ctx.callbackQuery.message?.chat.id;
+	if (callbackChatId !== chatId) {
+		await ctx.answerCallbackQuery();
+		return;
+	}
+
 	const data = ctx.callbackQuery.data;
 
 	if (data.startsWith("reply:")) {
 		const sessionId = data.slice("reply:".length);
+		const msg = getLastAgentMessageBySession(sessionId);
+		if (!msg) {
+			await ctx.answerCallbackQuery({
+				text: "Reply target is no longer active. Use /reply again.",
+				show_alert: true,
+			});
+			return;
+		}
+
 		pendingReplies.set(ctx.from.id, sessionId);
 
-		const msg = getLastAgentMessageBySession(sessionId);
 		const label = msg
 			? `[${msg.agentType}] ${msg.hostname} / ${msg.project}`
 			: sessionId;
@@ -74,38 +88,19 @@ const pendingReplies = new Map<number, string>();
 bot.on("message:text", async (ctx) => {
 	if (ctx.chat.id !== chatId) return;
 
-	// 1. Swipe-reply to a specific agent message
 	const replyTo = ctx.message.reply_to_message;
-	if (replyTo) {
-		const originalMessage = getMessageByTelegramId(replyTo.message_id);
-		if (originalMessage) {
-			insertReply(originalMessage, ctx.message.text);
-			await ctx.react("👍");
-			return;
-		}
-	}
+	const target = resolveReplyTarget({
+		replyToMessageId: replyTo?.message_id,
+		fromUserId: ctx.from.id,
+	});
 
-	// 2. Pending reply from inline button tap (toast said "Next message →")
-	const pendingSessionId = pendingReplies.get(ctx.from.id);
-	if (pendingSessionId) {
-		pendingReplies.delete(ctx.from.id);
-		const sessionMsg = getLastAgentMessageBySession(pendingSessionId);
-		if (sessionMsg) {
-			insertReply(sessionMsg, ctx.message.text);
-			await ctx.react("👍");
-			return;
-		}
-	}
-
-	// 3. Plain text — route to last agent that messaged
-	const lastAgent = getLastAgentMessage();
-	if (lastAgent) {
-		insertReply(lastAgent, ctx.message.text);
-		await ctx.react("👍");
+	if (target.kind === "error") {
+		await ctx.reply(target.message);
 		return;
 	}
 
-	await ctx.reply("No agents have messaged yet.");
+	insertReply(target.message, ctx.message.text);
+	await ctx.react("👍");
 });
 
 export async function sendToTelegram(
@@ -136,4 +131,58 @@ export async function sendToTelegram(
 
 function escapeHtml(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+type ReplyTargetResult =
+	| { kind: "deliver"; message: Message }
+	| { kind: "error"; message: string };
+
+interface ReplyTargetInput {
+	replyToMessageId?: number;
+	fromUserId: number;
+}
+
+export function resolveReplyTarget(input: ReplyTargetInput): ReplyTargetResult {
+	// 1. Swipe-reply to a specific message (strict mapping required)
+	if (input.replyToMessageId !== undefined) {
+		const originalMessage = getMessageByTelegramId(input.replyToMessageId);
+		if (!originalMessage) {
+			return {
+				kind: "error",
+				message:
+					"Couldn't find the original agent message. Use /reply to select an active agent.",
+			};
+		}
+		return { kind: "deliver", message: originalMessage };
+	}
+
+	// 2. Pending reply target from inline button tap
+	const pendingSessionId = pendingReplies.get(input.fromUserId);
+	if (pendingSessionId) {
+		pendingReplies.delete(input.fromUserId);
+		const sessionMsg = getLastAgentMessageBySession(pendingSessionId);
+		if (!sessionMsg) {
+			return {
+				kind: "error",
+				message:
+					"Reply target is no longer active. Use /reply and choose again.",
+			};
+		}
+		return { kind: "deliver", message: sessionMsg };
+	}
+
+	// 3. Plain text fallback — route to most recent agent
+	const lastAgent = getLastAgentMessage();
+	if (!lastAgent) {
+		return { kind: "error", message: "No agents have messaged yet." };
+	}
+	return { kind: "deliver", message: lastAgent };
+}
+
+export function __testOnly_setPendingReply(userId: number, sessionId: string) {
+	pendingReplies.set(userId, sessionId);
+}
+
+export function __testOnly_clearPendingReplies() {
+	pendingReplies.clear();
 }
