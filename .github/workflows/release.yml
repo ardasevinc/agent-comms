@@ -1,0 +1,39 @@
+name: Release CLI Binaries
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - bun-linux-x64
+          - bun-linux-arm64
+          - bun-darwin-x64
+          - bun-darwin-arm64
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - name: Compile CLI
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          SUFFIX="${TARGET#bun-}"
+          bun build --compile --target="${TARGET}" \
+            src/cli/index.ts --outfile "agent-comms-${SUFFIX}"
+
+      - name: Upload release asset
+        env:
+          TARGET: ${{ matrix.target }}
+          TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SUFFIX="${TARGET#bun-}"
+          gh release upload "${TAG}" "agent-comms-${SUFFIX}" --clobber
