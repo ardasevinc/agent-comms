@@ -15,8 +15,20 @@ export async function watch(
 ): Promise<0 | 1> {
 	const config = getConfig();
 	const identity = detectIdentity();
-	const intervalMs = Number(opts.interval) * 1000;
-	const timeoutMs = opts.timeout ? Number(opts.timeout) * 1000 : null;
+	const intervalSeconds = parseNonNegativeNumber(opts.interval);
+	if (intervalSeconds === null) {
+		err("Invalid --interval. Provide a non-negative number of seconds.\n");
+		return 1;
+	}
+	const intervalMs = intervalSeconds * 1000;
+
+	const timeoutSeconds =
+		opts.timeout === undefined ? null : parseNonNegativeNumber(opts.timeout);
+	if (opts.timeout !== undefined && timeoutSeconds === null) {
+		err("Invalid --timeout. Provide a non-negative number of seconds.\n");
+		return 1;
+	}
+	const timeoutMs = timeoutSeconds === null ? null : timeoutSeconds * 1000;
 	const startedAt = Date.now();
 
 	err(`Waiting for reply... (checking every ${opts.interval}s)\n`);
@@ -50,4 +62,10 @@ export async function watch(
 
 		await Bun.sleep(intervalMs);
 	}
+}
+
+function parseNonNegativeNumber(value: string): number | null {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed < 0) return null;
+	return parsed;
 }

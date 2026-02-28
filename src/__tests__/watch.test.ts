@@ -30,6 +30,10 @@ function errorResponse(status: number, body: string) {
 	return new Response(body, { status });
 }
 
+function setMockFetch(handler: () => Promise<Response>) {
+	globalThis.fetch = handler as unknown as typeof fetch;
+}
+
 describe("watch", () => {
 	let originalFetch: typeof globalThis.fetch;
 	let stdout: string[];
@@ -49,7 +53,7 @@ describe("watch", () => {
 	const err = (s: string) => stderr.push(s);
 
 	test("exits 0 immediately when replies exist on first check", async () => {
-		globalThis.fetch = async () => makeCheckResponse(["Use SQLite"]);
+		setMockFetch(async () => makeCheckResponse(["Use SQLite"]));
 
 		const code = await watch({ interval: "0" }, out, err);
 
@@ -59,11 +63,11 @@ describe("watch", () => {
 
 	test("polls again when first check returns no replies", async () => {
 		let calls = 0;
-		globalThis.fetch = async () => {
+		setMockFetch(async () => {
 			calls++;
 			if (calls === 1) return emptyCheckResponse();
 			return makeCheckResponse(["Keep it simple"]);
-		};
+		});
 
 		const code = await watch({ interval: "0" }, out, err);
 
@@ -73,8 +77,9 @@ describe("watch", () => {
 	});
 
 	test("prints all messages in a single reply batch", async () => {
-		globalThis.fetch = async () =>
-			makeCheckResponse(["First reply", "Second reply"]);
+		setMockFetch(async () =>
+			makeCheckResponse(["First reply", "Second reply"]),
+		);
 
 		const code = await watch({ interval: "0" }, out, err);
 
@@ -83,7 +88,7 @@ describe("watch", () => {
 	});
 
 	test("times out and returns 1 when no replies arrive", async () => {
-		globalThis.fetch = async () => emptyCheckResponse();
+		setMockFetch(async () => emptyCheckResponse());
 
 		const code = await watch({ interval: "0", timeout: "0" }, out, err);
 
@@ -92,7 +97,7 @@ describe("watch", () => {
 	});
 
 	test("returns 1 on http error", async () => {
-		globalThis.fetch = async () => errorResponse(500, "internal error");
+		setMockFetch(async () => errorResponse(500, "internal error"));
 
 		const code = await watch({ interval: "0" }, out, err);
 
@@ -102,17 +107,13 @@ describe("watch", () => {
 
 	test("continuous mode: keeps polling after first reply", async () => {
 		let calls = 0;
-		globalThis.fetch = async () => {
+		setMockFetch(async () => {
 			calls++;
 			if (calls <= 2) return makeCheckResponse([`reply ${calls}`]);
 			return errorResponse(500, "stop");
-		};
+		});
 
-		const code = await watch(
-			{ interval: "0", continuous: true },
-			out,
-			err,
-		);
+		const code = await watch({ interval: "0", continuous: true }, out, err);
 
 		// stopped by the 500 error, not by the replies
 		expect(code).toBe(1);
@@ -121,12 +122,68 @@ describe("watch", () => {
 	});
 
 	test("writes status to stderr, reply content to stdout only", async () => {
-		globalThis.fetch = async () => makeCheckResponse(["answer"]);
+		setMockFetch(async () => makeCheckResponse(["answer"]));
 
 		await watch({ interval: "0" }, out, err);
 
 		expect(stdout).toEqual(["answer\n"]);
 		expect(stderr.length).toBeGreaterThan(0);
 		expect(stderr.every((s) => !s.includes("answer"))).toBe(true);
+	});
+
+	test("returns 1 for invalid interval and does not call fetch", async () => {
+		let calls = 0;
+		setMockFetch(async () => {
+			calls++;
+			return emptyCheckResponse();
+		});
+
+		const code = await watch({ interval: "abc" }, out, err);
+
+		expect(code).toBe(1);
+		expect(calls).toBe(0);
+		expect(stderr.some((s) => s.includes("Invalid --interval"))).toBe(true);
+	});
+
+	test("returns 1 for negative interval and does not call fetch", async () => {
+		let calls = 0;
+		setMockFetch(async () => {
+			calls++;
+			return emptyCheckResponse();
+		});
+
+		const code = await watch({ interval: "-1" }, out, err);
+
+		expect(code).toBe(1);
+		expect(calls).toBe(0);
+		expect(stderr.some((s) => s.includes("Invalid --interval"))).toBe(true);
+	});
+
+	test("returns 1 for invalid timeout and does not call fetch", async () => {
+		let calls = 0;
+		setMockFetch(async () => {
+			calls++;
+			return emptyCheckResponse();
+		});
+
+		const code = await watch({ interval: "0", timeout: "abc" }, out, err);
+
+		expect(code).toBe(1);
+		expect(calls).toBe(0);
+		expect(stderr.some((s) => s.includes("Invalid --timeout"))).toBe(true);
+	});
+
+	test("returns 1 for negative timeout and does not call fetch", async () => {
+		let calls = 0;
+		setMockFetch(async () => {
+			calls++;
+			return emptyCheckResponse();
+		});
+
+		const code = await watch({ interval: "0", timeout: "-1" }, out, err);
+
+		expect(code).toBe(1);
+		expect(calls).toBe(0);
+		expect(stderr.some((s) => s.includes("Invalid --timeout"))).toBe(true);
 	});
 });

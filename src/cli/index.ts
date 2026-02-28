@@ -28,7 +28,9 @@ program
 	.command("history")
 	.description("View conversation history for this session")
 	.option("-l, --limit <n>", "Number of messages to show", "20")
-	.action(history);
+	.action(async (opts) => {
+		process.exit(await history(opts));
+	});
 
 program
 	.command("watch")

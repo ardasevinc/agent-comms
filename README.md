@@ -50,6 +50,12 @@ agent-comms history
 bun test
 ```
 
+Optional live integration checks (skipped by default):
+```bash
+AGENT_COMMS_LIVE_TESTS=1 bun test src/__tests__/live.integration.test.ts
+```
+Optional overrides: `AGENT_COMMS_LIVE_URL`, `AGENT_COMMS_LIVE_API_KEY`.
+
 ## Stack
 
 Bun, Hono, Grammy, Commander, bun:sqlite.

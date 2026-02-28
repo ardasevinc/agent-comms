@@ -116,7 +116,7 @@ Check for unread replies from the human.
       "content": "Use SQLite, keep it simple",
       "telegramMessageId": null,
       "createdAt": "2026-02-28 12:34:56",
-      "readAt": null
+      "readAt": "2026-02-28 12:35:00"
     }
   ]
 }
