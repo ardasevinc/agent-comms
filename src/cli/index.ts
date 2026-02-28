@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import pkg from "../../package.json";
 import { check } from "./commands/check.ts";
 import { configInit } from "./commands/config-init.ts";
 import { history } from "./commands/history.ts";
@@ -12,7 +13,7 @@ program
 	.description(
 		"Bidirectional messaging between AI agents and humans via Telegram",
 	)
-	.version("0.1.0");
+	.version(pkg.version);
 
 program
 	.command("send")
