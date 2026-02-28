@@ -197,7 +197,16 @@ Typing `/reply` shows an inline keyboard with all active agent sessions (up to 1
 agent-comms send <message>           # fire-and-forget, prints message ID
 agent-comms check                    # get unread replies, marks them read
 agent-comms history [-l, --limit N]  # show recent conversation (default 20)
+agent-comms watch                    # block until a reply arrives, then exit
 ```
+
+#### `watch` options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--interval <seconds>` | `15` | How often to poll for replies |
+| `--timeout <seconds>` | none | Give up after N seconds (exits 1). Omit for infinite wait. |
+| `--continuous` | off | Don't exit on first reply — keep printing new ones as they arrive |
 
 ### Configuration
 
@@ -238,6 +247,17 @@ Config file location: `~/.config/agent-comms/config.json`
 ```
 
 `→` = agent to human, `←` = human to agent.
+
+**`watch`** (reply received):
+- stdout: reply content only (capturable via `$()`)
+- stderr: status lines like `Waiting for reply... (checking every 15s)`
+
+**`watch`** (timeout expired):
+- stderr: `Timed out waiting for reply.`
+- exit code: `1`
+
+**`watch --continuous`** (ongoing):
+- prints each reply to stdout as it arrives, never exits on its own
 
 ## Database
 
@@ -322,7 +342,8 @@ agent-comms/
 │   │   ├── commands/
 │   │   │   ├── send.ts       # POST /messages
 │   │   │   ├── check.ts      # GET /messages/:sessionId
-│   │   │   └── history.ts    # GET /messages/:sessionId/history
+│   │   │   ├── history.ts    # GET /messages/:sessionId/history
+│   │   │   └── watch.ts      # poll until reply arrives, then exit
 │   │   ├── identity.ts       # agent type + session ID auto-detection
 │   │   └── config.ts         # env var / config file resolution
 │   ├── shared/
@@ -362,12 +383,20 @@ You have access to `agent-comms`, a CLI tool for messaging the human operator.
 
 **Commands:**
 - `agent-comms send "your message"` — send a message (fire-and-forget)
-- `agent-comms check` — check for replies from the human
+- `agent-comms check` — check for replies from the human (one-shot)
+- `agent-comms watch` — block until a reply arrives, then exit (stdout = reply content)
 - `agent-comms history` — view recent conversation
 
-**Important:** `send` is fire-and-forget. If you need a response, send your
-message and continue working on other tasks. Check for replies periodically
-with `agent-comms check` — don't block waiting.
+**Waiting for a reply:**
+```bash
+agent-comms send "should I use Redis or SQLite?"
+reply=$(agent-comms watch)   # blocks until human responds
+# use $reply
+```
+
+`watch` polls indefinitely by default — the human can take as long as needed.
+Use `--timeout <seconds>` to give up after a set time (exits with code 1).
+Use `--continuous` to keep printing replies without exiting (monitoring mode).
 ```
 
 ## Design Decisions
@@ -387,3 +416,5 @@ with `agent-comms check` — don't block waiting.
 **Why three reply mechanisms?** Swipe-reply is precise but requires scrolling to find the message. Inline Reply buttons solve this for recent messages. Plain-text-to-last-agent is the zero-friction path for the common case of one active agent. The `/reply` command handles the multi-agent picker case. Layering all three covers every UX scenario.
 
 **Why reactions instead of confirmation messages?** Confirmation messages like "Sent to [claude] ..." clutter the chat fast, especially with multiple agents. A 👍 reaction on the human's message is silent confirmation that doesn't add noise.
+
+**Why `watch` instead of a bash loop with a timeout?** Fixed-timeout polling loops mean agents silently give up if the human doesn't respond in the window — common when the human is busy or asleep. `watch` polls indefinitely by default, on the human's schedule. The `--timeout` flag is opt-in for cases where giving up after a set time makes sense. stdout/stderr separation makes reply content directly capturable via `$()`.

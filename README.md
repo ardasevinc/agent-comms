@@ -38,7 +38,9 @@ Or create `~/.config/agent-comms/config.json`:
 Then:
 ```bash
 agent-comms send "should I refactor this?"
-agent-comms check
+agent-comms check                  # one-shot reply check
+agent-comms watch                  # block until reply arrives
+reply=$(agent-comms watch)         # capture reply in a variable
 agent-comms history
 ```
 

@@ -13,6 +13,17 @@ bun test              # run all tests
 bun run lint          # biome check + autofix
 ```
 
+## CLI commands
+
+```
+agent-comms send "msg"       # fire-and-forget, prints ID
+agent-comms check            # one-shot unread reply check
+agent-comms watch            # block until reply arrives, exit 0 (stdout = content)
+agent-comms watch --timeout 300   # give up after 5 min, exit 1
+agent-comms watch --continuous    # keep printing replies, never exits on its own
+agent-comms history          # recent conversation
+```
+
 ## Env vars
 
 **Service** (`src/service/`):
@@ -23,6 +34,14 @@ bun run lint          # biome check + autofix
 
 **CLI** (`src/cli/`):
 - `AGENT_COMMS_URL`, `AGENT_COMMS_API_KEY` — or configure via `agent-comms config init` → `~/.config/agent-comms/config.json`
+
+## Waiting for a reply (canonical pattern)
+
+```bash
+agent-comms send "question here"
+reply=$(agent-comms watch)   # stdout = reply content, stderr = status
+# process $reply
+```
 
 ## Invariants
 
