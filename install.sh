@@ -34,4 +34,4 @@ else
 fi
 
 echo "Installed ${BINARY} to ${INSTALL_DIR}/${BINARY}"
-echo "Run '${BINARY} config init' to set up your config."
+echo "First install? You can run '${BINARY} config init' to create a config file."
