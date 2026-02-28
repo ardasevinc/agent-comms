@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# build artefact
+*.bun-build
+
 # code coverage
 coverage
 *.lcov
@@ -37,3 +40,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 agent-comms.db
 agent-comms.db-shm
 agent-comms.db-wal
+
