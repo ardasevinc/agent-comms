@@ -5,6 +5,7 @@ import { check } from "./commands/check.ts";
 import { configInit } from "./commands/config-init.ts";
 import { history } from "./commands/history.ts";
 import { send } from "./commands/send.ts";
+import { watch } from "./commands/watch.ts";
 
 const program = new Command();
 
@@ -28,6 +29,16 @@ program
 	.description("View conversation history for this session")
 	.option("-l, --limit <n>", "Number of messages to show", "20")
 	.action(history);
+
+program
+	.command("watch")
+	.description("Block until a reply arrives, then exit")
+	.option("--interval <seconds>", "Poll interval in seconds", "15")
+	.option("--timeout <seconds>", "Give up after N seconds (exits 1)")
+	.option("--continuous", "Keep printing replies without exiting")
+	.action(async (opts) => {
+		process.exit(await watch(opts));
+	});
 
 const config = program
 	.command("config")

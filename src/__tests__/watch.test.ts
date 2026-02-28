@@ -1,0 +1,132 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
+process.env.AGENT_COMMS_URL = "http://test-service";
+process.env.AGENT_COMMS_API_KEY = "test-key";
+// no CLAUDE_SESSION_ID — identity fallback generates a UUID, fine since fetch is mocked
+
+const { watch } = await import("../cli/commands/watch.ts");
+
+function makeCheckResponse(contents: string[]) {
+	const messages = contents.map((content, i) => ({
+		id: i + 1,
+		sessionId: "watch-test-session",
+		agentType: "claude",
+		hostname: "test-host",
+		project: "test-proj",
+		direction: "human_to_agent",
+		content,
+		telegramMessageId: null,
+		createdAt: "2026-01-01 00:00:00",
+		readAt: null,
+	}));
+	return new Response(JSON.stringify({ messages }), { status: 200 });
+}
+
+function emptyCheckResponse() {
+	return new Response(JSON.stringify({ messages: [] }), { status: 200 });
+}
+
+function errorResponse(status: number, body: string) {
+	return new Response(body, { status });
+}
+
+describe("watch", () => {
+	let originalFetch: typeof globalThis.fetch;
+	let stdout: string[];
+	let stderr: string[];
+
+	beforeEach(() => {
+		originalFetch = globalThis.fetch;
+		stdout = [];
+		stderr = [];
+	});
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const out = (s: string) => stdout.push(s);
+	const err = (s: string) => stderr.push(s);
+
+	test("exits 0 immediately when replies exist on first check", async () => {
+		globalThis.fetch = async () => makeCheckResponse(["Use SQLite"]);
+
+		const code = await watch({ interval: "0" }, out, err);
+
+		expect(code).toBe(0);
+		expect(stdout).toEqual(["Use SQLite\n"]);
+	});
+
+	test("polls again when first check returns no replies", async () => {
+		let calls = 0;
+		globalThis.fetch = async () => {
+			calls++;
+			if (calls === 1) return emptyCheckResponse();
+			return makeCheckResponse(["Keep it simple"]);
+		};
+
+		const code = await watch({ interval: "0" }, out, err);
+
+		expect(code).toBe(0);
+		expect(calls).toBe(2);
+		expect(stdout).toEqual(["Keep it simple\n"]);
+	});
+
+	test("prints all messages in a single reply batch", async () => {
+		globalThis.fetch = async () =>
+			makeCheckResponse(["First reply", "Second reply"]);
+
+		const code = await watch({ interval: "0" }, out, err);
+
+		expect(code).toBe(0);
+		expect(stdout).toEqual(["First reply\n", "Second reply\n"]);
+	});
+
+	test("times out and returns 1 when no replies arrive", async () => {
+		globalThis.fetch = async () => emptyCheckResponse();
+
+		const code = await watch({ interval: "0", timeout: "0" }, out, err);
+
+		expect(code).toBe(1);
+		expect(stderr.some((s) => s.includes("Timed out"))).toBe(true);
+	});
+
+	test("returns 1 on http error", async () => {
+		globalThis.fetch = async () => errorResponse(500, "internal error");
+
+		const code = await watch({ interval: "0" }, out, err);
+
+		expect(code).toBe(1);
+		expect(stderr.some((s) => s.includes("500"))).toBe(true);
+	});
+
+	test("continuous mode: keeps polling after first reply", async () => {
+		let calls = 0;
+		globalThis.fetch = async () => {
+			calls++;
+			if (calls <= 2) return makeCheckResponse([`reply ${calls}`]);
+			return errorResponse(500, "stop");
+		};
+
+		const code = await watch(
+			{ interval: "0", continuous: true },
+			out,
+			err,
+		);
+
+		// stopped by the 500 error, not by the replies
+		expect(code).toBe(1);
+		expect(stdout).toEqual(["reply 1\n", "reply 2\n"]);
+		expect(calls).toBe(3);
+	});
+
+	test("writes status to stderr, reply content to stdout only", async () => {
+		globalThis.fetch = async () => makeCheckResponse(["answer"]);
+
+		await watch({ interval: "0" }, out, err);
+
+		expect(stdout).toEqual(["answer\n"]);
+		expect(stderr.length).toBeGreaterThan(0);
+		expect(stderr.every((s) => !s.includes("answer"))).toBe(true);
+	});
+});
