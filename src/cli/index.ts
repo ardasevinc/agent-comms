@@ -39,6 +39,10 @@ program
 	.option("--timeout <seconds>", "Give up after N seconds (exits 1)")
 	.option("--continuous", "Keep printing replies without exiting")
 	.action(async (opts) => {
+		if (Number(opts.interval) < 1) {
+			console.error("--interval must be at least 1 second");
+			process.exit(1);
+		}
 		process.exit(await watch(opts));
 	});
 
