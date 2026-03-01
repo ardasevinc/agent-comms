@@ -30,6 +30,11 @@ function errorResponse(status: number, body: string) {
 	return new Response(body, { status });
 }
 
+/** Returns a promise that never resolves — used to pause the watch loop in continuous tests. */
+function hangForever(): Promise<Response> {
+	return new Promise(() => {});
+}
+
 function setMockFetch(handler: () => Promise<Response>) {
 	globalThis.fetch = handler as unknown as typeof fetch;
 }
@@ -96,7 +101,7 @@ describe("watch", () => {
 		expect(stderr.some((s) => s.includes("Timed out"))).toBe(true);
 	});
 
-	test("returns 1 on http error", async () => {
+	test("returns 1 on http error (one-shot)", async () => {
 		setMockFetch(async () => errorResponse(500, "internal error"));
 
 		const code = await watch({ interval: "0" }, out, err);
@@ -105,20 +110,73 @@ describe("watch", () => {
 		expect(stderr.some((s) => s.includes("500"))).toBe(true);
 	});
 
+	test("returns 1 on connection error (one-shot)", async () => {
+		setMockFetch(async () => {
+			throw new Error("ECONNREFUSED");
+		});
+
+		const code = await watch({ interval: "0" }, out, err);
+
+		expect(code).toBe(1);
+		expect(stderr.some((s) => s.includes("ECONNREFUSED"))).toBe(true);
+	});
+
 	test("continuous mode: keeps polling after first reply", async () => {
 		let calls = 0;
 		setMockFetch(async () => {
 			calls++;
-			if (calls <= 2) return makeCheckResponse([`reply ${calls}`]);
-			return errorResponse(500, "stop");
+			if (calls === 1) return makeCheckResponse(["reply 1"]);
+			if (calls === 2) return makeCheckResponse(["reply 2"]);
+			// pause loop after collecting enough data
+			return hangForever();
 		});
 
-		const code = await watch({ interval: "0", continuous: true }, out, err);
+		// don't await — continuous mode never exits on its own
+		watch({ interval: "0", continuous: true }, out, err);
+		await Bun.sleep(50);
 
-		// stopped by the 500 error, not by the replies
-		expect(code).toBe(1);
 		expect(stdout).toEqual(["reply 1\n", "reply 2\n"]);
 		expect(calls).toBe(3);
+	});
+
+	test("continuous mode: ignores --timeout", async () => {
+		let calls = 0;
+		setMockFetch(async () => {
+			calls++;
+			// timeout:"0" would fire immediately in one-shot mode
+			if (calls === 1) return emptyCheckResponse();
+			if (calls === 2) return makeCheckResponse(["late reply"]);
+			return hangForever();
+		});
+
+		watch(
+			{ interval: "0", timeout: "0", continuous: true },
+			out,
+			err,
+		);
+		await Bun.sleep(50);
+
+		expect(stdout).toEqual(["late reply\n"]);
+		expect(stderr.some((s) => s.includes("ignores --timeout"))).toBe(true);
+	});
+
+	test("continuous mode: retries on transient errors then recovers", async () => {
+		let calls = 0;
+		setMockFetch(async () => {
+			calls++;
+			if (calls === 1) throw new Error("ECONNREFUSED");
+			if (calls === 2) return errorResponse(503, "unavailable");
+			if (calls === 3) return makeCheckResponse(["recovered"]);
+			return hangForever();
+		});
+
+		watch({ interval: "0", continuous: true }, out, err);
+		await Bun.sleep(50);
+
+		expect(stdout).toEqual(["recovered\n"]);
+		expect(calls).toBe(4);
+		expect(stderr.some((s) => s.includes("Connection error"))).toBe(true);
+		expect(stderr.some((s) => s.includes("503"))).toBe(true);
 	});
 
 	test("writes status to stderr, reply content to stdout only", async () => {
