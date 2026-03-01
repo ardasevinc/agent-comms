@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 interface Config {
@@ -16,6 +16,12 @@ const CONFIG_PATH = join(
 function loadConfigFile(): Partial<Config> {
 	if (!existsSync(CONFIG_PATH)) return {};
 	try {
+		const stat = statSync(CONFIG_PATH);
+		if (stat.mode & 0o077) {
+			console.error(
+				`Warning: ${CONFIG_PATH} is accessible by other users. Run: chmod 600 ${CONFIG_PATH}`,
+			);
+		}
 		return JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
 	} catch {
 		return {};

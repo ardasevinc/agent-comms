@@ -12,10 +12,12 @@ export function configInit() {
 
 	const dir = dirname(CONFIG_PATH);
 	if (!existsSync(dir)) {
-		mkdirSync(dir, { recursive: true });
+		mkdirSync(dir, { recursive: true, mode: 0o700 });
 	}
 
 	const config = { serverUrl: "", apiKey: "" };
-	writeFileSync(CONFIG_PATH, JSON.stringify(config, null, "\t"));
+	writeFileSync(CONFIG_PATH, JSON.stringify(config, null, "\t"), {
+		mode: 0o600,
+	});
 	console.log(`Config created at ${CONFIG_PATH}`);
 }
