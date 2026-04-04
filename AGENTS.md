@@ -50,6 +50,12 @@ reply=$(agent-comms watch)   # stdout = reply content, stderr = status
 - Session ID is **auto-detected** by the CLI (from `CLAUDE_SESSION_ID`, `CODEX_THREAD_ID`, or `~/.claude/debug/latest`). Agents don't pass it manually.
 - Service runs TypeScript directly — no build step. CLI has a compiled binary release for agent machines (see `.github/workflows/`).
 
+## Pitfalls
+
+- **`identity.test.ts` fails inside Claude Code sessions.** The "detects codex agent type" test expects `CODEX_THREAD_ID` to win, but `CLAUDE_SESSION_ID` is set in env and takes priority. Pre-existing, not a regression — ignore it in CI-from-agent contexts.
+- **`--interval 0` is allowed internally but blocked at CLI.** The `watch()` function accepts 0 (tests rely on this to avoid real sleeps). The CLI rejects `< 1`. Don't "fix" the function to enforce >= 1 or you'll break all watch tests.
+- **Config file contains the API key in plaintext.** `~/.config/agent-comms/config.json` should be 0600. `config init` enforces this, but if you create it manually, you must set permissions yourself.
+
 ## Tests
 
 Each suite creates a temp sqlite file and restores env vars on teardown. Run a single suite: `bun test src/__tests__/foo.test.ts`.
