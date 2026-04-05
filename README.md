@@ -4,6 +4,15 @@ Bidirectional messaging between AI coding agents and humans via Telegram. Agents
 
 See [docs/SPEC.md](docs/SPEC.md) for the full specification.
 
+## Workspace Layout
+
+This repo is a Bun workspace monorepo:
+
+- `packages/shared` — identity, config, and shared types
+- `packages/service` — Hono API + Grammy bot + SQLite
+- `packages/cli` — `agent-comms` CLI entrypoint
+- `packages/channel` — Claude Code stdio MCP bridge
+
 ## Quick Start
 
 ```bash
@@ -42,6 +51,7 @@ agent-comms check                  # one-shot reply check
 agent-comms watch                  # block until reply arrives
 reply=$(agent-comms watch)         # capture reply in a variable
 agent-comms history
+agent-comms channel serve          # Claude Code channel bridge
 ```
 
 ### Tests
@@ -52,10 +62,10 @@ bun test
 
 Optional live integration checks (skipped by default):
 ```bash
-AGENT_COMMS_LIVE_TESTS=1 bun test src/__tests__/live.integration.test.ts
+AGENT_COMMS_LIVE_TESTS=1 bun test packages/service/src/__tests__/live.integration.test.ts
 ```
 Optional overrides: `AGENT_COMMS_LIVE_URL`, `AGENT_COMMS_LIVE_API_KEY`.
 
 ## Stack
 
-Bun, Hono, Grammy, Commander, bun:sqlite.
+Bun workspaces, Hono, Grammy, Commander, bun:sqlite, MCP TypeScript SDK.

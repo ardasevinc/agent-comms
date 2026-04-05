@@ -1,0 +1,14 @@
+{
+	"name": "@agent-comms/cli",
+	"version": "0.2.1",
+	"type": "module",
+	"private": true,
+	"bin": {
+		"agent-comms": "src/index.ts"
+	},
+	"dependencies": {
+		"@agent-comms/channel": "workspace:*",
+		"@agent-comms/shared": "workspace:*",
+		"commander": "^14.0.3"
+	}
+}

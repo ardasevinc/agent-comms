@@ -30,7 +30,7 @@ jobs:
         run: |
           SUFFIX="${TARGET#bun-}"
           bun build --compile --target="${TARGET}" \
-            src/cli/index.ts --outfile "agent-comms-${SUFFIX}"
+            packages/cli/src/index.ts --outfile "agent-comms-${SUFFIX}"
 
       - name: Upload release asset
         env:

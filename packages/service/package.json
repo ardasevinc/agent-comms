@@ -1,0 +1,11 @@
+{
+	"name": "@agent-comms/service",
+	"version": "0.2.1",
+	"type": "module",
+	"private": true,
+	"dependencies": {
+		"@agent-comms/shared": "workspace:*",
+		"grammy": "^1.40.1",
+		"hono": "^4.12.3"
+	}
+}

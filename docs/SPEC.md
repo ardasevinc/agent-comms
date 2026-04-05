@@ -20,11 +20,21 @@ agent (any machine)                    devbox (dokku)                    human (
     │    GET /messages/:sessionId          │                                │
 ```
 
-Three components:
+Four components:
 
 1. **Service** — Single Bun process running Hono HTTP API + Grammy Telegram bot (long polling) + bun:sqlite. Deployed on devbox via Dokku.
 2. **CLI** — Thin client installed on every machine where agents run. Auto-detects agent identity. Talks to the service over HTTP.
-3. **Telegram bot** — Human-facing interface. Delivers agent messages, routes swipe-replies back to the correct agent session.
+3. **Channel bridge** — Local stdio MCP server for Claude Code. Consumes the service SSE stream and emits `notifications/claude/channel` into the running session.
+4. **Telegram bot** — Human-facing interface. Delivers agent messages, routes swipe-replies back to the correct agent session.
+
+## Repo Layout
+
+The repo is organized as Bun workspaces:
+
+- `packages/shared`
+- `packages/service`
+- `packages/cli`
+- `packages/channel`
 
 ## Agent Identity
 
@@ -124,6 +134,17 @@ Check for unread replies from the human.
 
 Returns empty array when no unread messages exist.
 
+### `GET /messages/:sessionId/stream`
+
+Server-Sent Events endpoint for real-time inbound delivery.
+
+- Auth: same bearer token as the rest of the API
+- Event type: `message`
+- Heartbeat: `event: heartbeat`
+- Reconnect cursor: `Last-Event-ID`
+
+This route is consumed by the local Claude Code channel bridge. Polling commands (`check` / `watch`) still use the JSON endpoints.
+
 ### `GET /messages/:sessionId/history`
 
 Full conversation history for a session (both directions).
@@ -198,6 +219,7 @@ agent-comms send <message>           # fire-and-forget, prints message ID
 agent-comms check                    # get unread replies, marks them read
 agent-comms history [-l, --limit N]  # show recent conversation (default 20)
 agent-comms watch                    # block until a reply arrives, then exit
+agent-comms channel serve            # stdio MCP bridge for Claude Code channels
 ```
 
 #### `watch` options

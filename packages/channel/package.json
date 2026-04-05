@@ -1,0 +1,16 @@
+{
+	"name": "@agent-comms/channel",
+	"version": "0.2.1",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts",
+		"./sse": "./src/sse.ts",
+		"./state": "./src/state.ts"
+	},
+	"dependencies": {
+		"@agent-comms/shared": "workspace:*",
+		"@modelcontextprotocol/sdk": "^1.20.0",
+		"zod": "^4.1.12"
+	}
+}

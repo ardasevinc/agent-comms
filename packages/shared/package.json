@@ -1,0 +1,12 @@
+{
+	"name": "@agent-comms/shared",
+	"version": "0.2.1",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts",
+		"./config": "./src/config.ts",
+		"./identity": "./src/identity.ts",
+		"./types": "./src/types.ts"
+	}
+}
