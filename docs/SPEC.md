@@ -324,6 +324,7 @@ Bun automatically loads `.env` files from the project root. Copy `.env.example` 
 | `API_KEY`            | Yes      | —                    | Shared secret for API auth     |
 | `DATABASE_PATH`      | No       | `./agent-comms.db`   | SQLite file path               |
 | `PORT`               | No       | `3000`               | HTTP server port               |
+| `DISABLE_TELEGRAM_BOT` | No     | unset                | Skip bot polling; run HTTP only for local testing |
 
 ### CLI
 

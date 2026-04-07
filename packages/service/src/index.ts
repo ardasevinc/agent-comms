@@ -2,14 +2,21 @@ import { app } from "./api.ts";
 import { bot, registerCommands } from "./bot.ts";
 
 const PORT = Number(process.env.PORT ?? 3000);
+const DISABLE_TELEGRAM_BOT = /^(1|true|yes|on)$/i.test(
+	process.env.DISABLE_TELEGRAM_BOT ?? "",
+);
 
-// Start Telegram bot (long polling)
-bot.start({
-	onStart: async () => {
-		await registerCommands();
-		console.log("Telegram bot started");
-	},
-});
+if (DISABLE_TELEGRAM_BOT) {
+	console.log("Telegram bot disabled via DISABLE_TELEGRAM_BOT");
+} else {
+	// Start Telegram bot (long polling)
+	bot.start({
+		onStart: async () => {
+			await registerCommands();
+			console.log("Telegram bot started");
+		},
+	});
+}
 
 // Start HTTP server
 export default {

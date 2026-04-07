@@ -28,6 +28,12 @@ export API_KEY=...             # shared secret
 bun run service
 ```
 
+For local API/SSE testing while another machine is already polling the same Telegram bot:
+```bash
+export DISABLE_TELEGRAM_BOT=1
+bun run service
+```
+
 ### CLI
 
 Configure once:
