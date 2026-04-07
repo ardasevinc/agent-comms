@@ -1,5 +1,6 @@
 import { app } from "./api.ts";
 import { bot, registerCommands } from "./bot.ts";
+import { createFetchHandler } from "./server.ts";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const DISABLE_TELEGRAM_BOT = /^(1|true|yes|on)$/i.test(
@@ -21,7 +22,7 @@ if (DISABLE_TELEGRAM_BOT) {
 // Start HTTP server
 export default {
 	port: PORT,
-	fetch: app.fetch,
+	fetch: createFetchHandler(app.fetch),
 };
 
 console.log(`API server listening on :${PORT}`);
