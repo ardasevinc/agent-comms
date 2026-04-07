@@ -82,6 +82,9 @@ app.get("/messages/:sessionId/stream", (c) => {
 
 	return streamSSE(c, async (stream) => {
 		let unregister: (() => void) | undefined;
+
+		await stream.writeSSE({ event: "connected", data: "" });
+
 		const heartbeat = setInterval(() => {
 			if (stream.aborted || stream.closed) return;
 			void stream.writeSSE({ event: "heartbeat", data: "" }).catch(() => {});

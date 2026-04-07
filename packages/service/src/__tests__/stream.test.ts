@@ -48,7 +48,7 @@ describe("GET /messages/:sessionId/stream", () => {
 		const firstId = insertMessage(identity, "human_to_agent", "first unread");
 
 		const { reader, abort } = await openStream();
-		const rawEvent = await readNextEvent(reader);
+		const rawEvent = await readNextEvent(reader, "message");
 		abort.abort();
 
 		expect(rawEvent).toContain("event: message");
@@ -56,6 +56,7 @@ describe("GET /messages/:sessionId/stream", () => {
 
 		const payload = extractJsonPayload(rawEvent) as { content: string };
 		expect(payload.content).toBe("first unread");
+		await Bun.sleep(0);
 		expect(getUnreadReplies(identity.sessionId)).toHaveLength(0);
 	});
 
@@ -68,8 +69,8 @@ describe("GET /messages/:sessionId/stream", () => {
 		const { reader, abort } = await openStream({
 			"Last-Event-ID": String(firstId),
 		});
-		const eventA = await readNextEvent(reader);
-		const eventB = await readNextEvent(reader);
+		const eventA = await readNextEvent(reader, "message");
+		const eventB = await readNextEvent(reader, "message");
 		abort.abort();
 
 		expect(extractJsonPayload(eventA)).toMatchObject({ content: "replay me" });
@@ -79,6 +80,9 @@ describe("GET /messages/:sessionId/stream", () => {
 
 	test("pushes live replies through the stream", async () => {
 		const { reader, abort } = await openStream();
+		const connected = await readNextEvent(reader);
+		expect(connected).toContain("event: connected");
+
 		const id = insertMessage(identity, "human_to_agent", "live reply");
 		const message = getMessageById(id);
 		expect(message).not.toBeNull();
@@ -86,13 +90,22 @@ describe("GET /messages/:sessionId/stream", () => {
 		await Bun.sleep(10);
 		await pushToSession(identity.sessionId, message!);
 
-		const rawEvent = await readNextEvent(reader);
+		const rawEvent = await readNextEvent(reader, "message");
 		abort.abort();
 
 		expect(extractJsonPayload(rawEvent)).toMatchObject({
 			content: "live reply",
 		});
 		expect(getUnreadReplies(identity.sessionId)).toHaveLength(0);
+	});
+
+	test("emits a connected control event immediately on empty streams", async () => {
+		const { reader, abort } = await openStream();
+		const rawEvent = await readNextEvent(reader);
+		abort.abort();
+
+		expect(rawEvent).toContain("event: connected");
+		expect(rawEvent).toContain("data: ");
 	});
 });
 
@@ -114,9 +127,12 @@ async function openStream(headers?: Record<string, string>) {
 	return { reader: res.body!.getReader(), abort };
 }
 
-async function readNextEvent(reader: {
-	read(): Promise<{ done: boolean; value?: Uint8Array }>;
-}): Promise<string> {
+async function readNextEvent(
+	reader: {
+		read(): Promise<{ done: boolean; value?: Uint8Array }>;
+	},
+	expectedEvent?: string,
+): Promise<string> {
 	let buffer = "";
 
 	while (true) {
@@ -136,9 +152,15 @@ async function readNextEvent(reader: {
 		}
 
 		buffer += new TextDecoder().decode(result.value);
-		const splitAt = buffer.indexOf("\n\n");
-		if (splitAt >= 0) {
-			return buffer.slice(0, splitAt);
+		while (true) {
+			const splitAt = buffer.indexOf("\n\n");
+			if (splitAt < 0) break;
+
+			const rawEvent = buffer.slice(0, splitAt);
+			buffer = buffer.slice(splitAt + 2);
+			if (!expectedEvent || rawEvent.includes(`event: ${expectedEvent}`)) {
+				return rawEvent;
+			}
 		}
 	}
 }
