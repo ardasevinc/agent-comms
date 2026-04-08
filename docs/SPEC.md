@@ -348,33 +348,21 @@ dokku config:set agent-comms \
   DATABASE_PATH=/data/agent-comms.db
 ```
 
-The Dockerfile uses `oven/bun:1`, runs TypeScript directly (no build step), and exposes port 3000.
+The Dockerfile uses `oven/bun:1`, installs the Bun workspaces from the repo root, runs TypeScript directly, and starts `packages/service/src/index.ts` on port 3000.
 
 ## Project Structure
 
 ```
 agent-comms/
-├── src/
+├── packages/
 │   ├── service/
-│   │   ├── index.ts          # wires Hono + Grammy, exports Bun server
-│   │   ├── api.ts            # Hono routes + auth middleware
-│   │   ├── bot.ts            # Grammy bot, reply handler, sendToTelegram()
-│   │   └── db.ts             # SQLite schema, prepared statements, all queries
+│   │   └── src/              # Hono API, Grammy bot, SQLite, Bun server
 │   ├── cli/
-│   │   ├── index.ts          # #!/usr/bin/env bun, Commander setup
-│   │   ├── commands/
-│   │   │   ├── send.ts       # POST /messages
-│   │   │   ├── check.ts      # GET /messages/:sessionId
-│   │   │   ├── history.ts    # GET /messages/:sessionId/history
-│   │   │   └── watch.ts      # poll until reply arrives, then exit
-│   │   ├── identity.ts       # agent type + session ID auto-detection
-│   │   └── config.ts         # env var / config file resolution
-│   ├── shared/
-│   │   └── types.ts          # AgentIdentity, Message, request/response types
-│   └── __tests__/
-│       ├── db.test.ts        # SQLite layer tests
-│       ├── api.test.ts       # HTTP route tests
-│       └── identity.test.ts  # Identity detection tests
+│   │   └── src/              # CLI entrypoint and commands
+│   ├── channel/
+│   │   └── src/              # Claude Code stdio MCP bridge
+│   └── shared/
+│       └── src/              # shared types, config, identity helpers
 ├── Dockerfile
 ├── biome.json
 ├── package.json

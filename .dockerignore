@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+.env
+.env.*
+.mcp.json
+.claude
+agent-comms.db
+agent-comms.db-shm
+agent-comms.db-wal
+coverage
+dist
+out
+*.bun-build
