@@ -17,10 +17,10 @@ const ReplyArgsSchema = z.object({
 
 export async function serveChannel(): Promise<void> {
 	const config = getConfig();
-	const identity = detectIdentity();
+	const identity = { ...detectIdentity(), agentType: "claude" as const };
 	const transport = new StdioServerTransport();
 	const server = new Server(
-		{ name: "agent-comms", version: "0.2.1" },
+		{ name: "agent-comms", version: "0.3.0" },
 		{
 			capabilities: {
 				experimental: {
