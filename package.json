@@ -1,6 +1,6 @@
 {
 	"name": "agent-comms",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"type": "module",
 	"private": true,
 	"workspaces": [
@@ -18,5 +18,8 @@
 		"@biomejs/biome": "^2.4.4",
 		"@types/bun": "latest",
 		"typescript": "^5.9.3"
+	},
+	"overrides": {
+		"ip-address": "10.7.4"
 	}
 }
